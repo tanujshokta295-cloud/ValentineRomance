@@ -26,13 +26,13 @@ const characterOptions = [
     id: 'bear',
     name: 'Teddy Bear',
     emoji: '🧸',
-    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=150&h=150&fit=crop',
+    image: 'https://images.unsplash.com/photo-1747847386084-2b299514f40c?w=150&h=150&fit=crop',
   },
   {
     id: 'bunny',
     name: 'Love Bunny',
     emoji: '🐰',
-    image: 'https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=150&h=150&fit=crop',
+    image: 'https://images.unsplash.com/photo-1718459782489-5aeeb65522be?w=150&h=150&fit=crop',
   },
 ];
 
