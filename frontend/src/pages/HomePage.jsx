@@ -32,7 +32,7 @@ const characterOptions = [
     id: 'seal',
     name: 'Sappy Seals',
     emoji: '🦭',
-    image: 'https://media.tenor.com/ROmTAoP9n8oAAAAi/sappy-seals-sappy.gif',
+    image: 'https://media1.tenor.com/m/ROmTAoP9n8oAAAAC/sappy-seals-sappy.gif',
   },
 ];
 

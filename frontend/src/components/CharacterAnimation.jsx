@@ -17,7 +17,7 @@ const characters = {
   seal: {
     name: 'Sappy Seals',
     lottieUrl: null,
-    gifUrl: 'https://media.tenor.com/ROmTAoP9n8oAAAAi/sappy-seals-sappy.gif',
+    gifUrl: 'https://media1.tenor.com/m/ROmTAoP9n8oAAAAC/sappy-seals-sappy.gif',
     fallbackEmoji: '🦭',
   },
 };
