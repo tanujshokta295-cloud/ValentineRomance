@@ -1,34 +1,67 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
-}
-
-.App-header {
-    background-color: #0f0f10;
+/* Valentine Theme Styles */
+.valentine-bg {
+    background-color: #FFF0F5;
     min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
+}
+
+.valentine-card {
+    background: white;
+    border-radius: 2rem;
+    box-shadow: 0 20px 50px rgba(255, 77, 109, 0.15);
+}
+
+.valentine-btn-yes {
+    background-color: #FF4D6D;
     color: white;
+    border-radius: 9999px;
+    font-weight: 700;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 20px rgba(255, 77, 109, 0.3);
 }
 
-.App-link {
-    color: #61dafb;
+.valentine-btn-yes:hover {
+    background-color: #FF3355;
+    transform: scale(1.05);
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
+.valentine-btn-no {
+    background-color: #FF8FA3;
+    color: white;
+    border-radius: 9999px;
+    font-weight: 700;
+    transition: all 0.2s ease;
+}
+
+.valentine-btn-no:hover {
+    background-color: #FF758F;
+}
+
+.text-valentine-primary {
+    color: #FF4D6D;
+}
+
+.bg-valentine-primary {
+    background-color: #FF4D6D;
+}
+
+/* Character container */
+.character-container {
+    width: 200px;
+    height: 200px;
+    margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+    .character-container {
+        width: 280px;
+        height: 280px;
     }
-    to {
-        transform: rotate(360deg);
-    }
+}
+
+/* Celebration overlay */
+.celebration-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    pointer-events: none;
 }
