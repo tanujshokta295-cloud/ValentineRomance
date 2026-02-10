@@ -9,6 +9,9 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
+import razorpay
+import hmac
+import hashlib
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -17,6 +20,11 @@ load_dotenv(ROOT_DIR / '.env')
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
+
+# Razorpay client
+razorpay_client = razorpay.Client(
+    auth=(os.environ['RAZORPAY_KEY_ID'], os.environ['RAZORPAY_KEY_SECRET'])
+)
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -28,7 +36,7 @@ api_router = APIRouter(prefix="/api")
 class ProposalCreate(BaseModel):
     valentine_name: str = Field(..., min_length=1, max_length=100)
     custom_message: Optional[str] = Field(default="Will you be my Valentine?", max_length=500)
-    character_choice: str = Field(default="panda")  # panda, bear, bunny
+    character_choice: str = Field(default="bear")
 
 class ProposalResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -40,9 +48,28 @@ class ProposalResponse(BaseModel):
     created_at: str
     accepted: Optional[bool] = None
     accepted_at: Optional[str] = None
+    paid: bool = False
 
 class ProposalUpdate(BaseModel):
     accepted: bool
+
+class PaymentOrderCreate(BaseModel):
+    valentine_name: str
+    custom_message: Optional[str] = "Will you be my Valentine?"
+    character_choice: str = "bear"
+
+class PaymentOrderResponse(BaseModel):
+    order_id: str
+    amount: int
+    currency: str
+    key_id: str
+    proposal_id: str
+
+class PaymentVerify(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+    proposal_id: str
 
 class StatusCheck(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -54,9 +81,125 @@ class StatusCheck(BaseModel):
 class StatusCheckCreate(BaseModel):
     client_name: str
 
+# Payment amount in paise (₹249 = 24900 paise, approximately $2.99)
+PAYMENT_AMOUNT = 24900  # ₹249
+
+# Payment endpoints
+@api_router.post("/payments/create-order", response_model=PaymentOrderResponse)
+async def create_payment_order(input: PaymentOrderCreate):
+    """Create a Razorpay order and a pending proposal"""
+    try:
+        # Create proposal first (unpaid)
+        proposal_id = str(uuid.uuid4())
+        created_at = datetime.now(timezone.utc).isoformat()
+        
+        proposal_doc = {
+            "id": proposal_id,
+            "valentine_name": input.valentine_name,
+            "custom_message": input.custom_message or "Will you be my Valentine?",
+            "character_choice": input.character_choice,
+            "created_at": created_at,
+            "accepted": None,
+            "accepted_at": None,
+            "paid": False,
+            "payment_status": "pending"
+        }
+        
+        await db.proposals.insert_one(proposal_doc)
+        
+        # Create Razorpay order
+        order_data = {
+            "amount": PAYMENT_AMOUNT,
+            "currency": "INR",
+            "receipt": f"proposal_{proposal_id[:8]}",
+            "notes": {
+                "proposal_id": proposal_id,
+                "valentine_name": input.valentine_name
+            }
+        }
+        
+        razorpay_order = razorpay_client.order.create(data=order_data)
+        
+        # Store order info
+        await db.payments.insert_one({
+            "order_id": razorpay_order["id"],
+            "proposal_id": proposal_id,
+            "amount": PAYMENT_AMOUNT,
+            "currency": "INR",
+            "status": "created",
+            "created_at": created_at
+        })
+        
+        return PaymentOrderResponse(
+            order_id=razorpay_order["id"],
+            amount=PAYMENT_AMOUNT,
+            currency="INR",
+            key_id=os.environ['RAZORPAY_KEY_ID'],
+            proposal_id=proposal_id
+        )
+        
+    except Exception as e:
+        logging.error(f"Error creating payment order: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create payment order: {str(e)}")
+
+@api_router.post("/payments/verify")
+async def verify_payment(input: PaymentVerify):
+    """Verify Razorpay payment signature and activate proposal"""
+    try:
+        # Verify signature
+        message = f"{input.razorpay_order_id}|{input.razorpay_payment_id}"
+        secret = os.environ['RAZORPAY_KEY_SECRET']
+        
+        generated_signature = hmac.new(
+            secret.encode(),
+            message.encode(),
+            hashlib.sha256
+        ).hexdigest()
+        
+        if generated_signature != input.razorpay_signature:
+            raise HTTPException(status_code=400, detail="Invalid payment signature")
+        
+        # Update payment record
+        await db.payments.update_one(
+            {"order_id": input.razorpay_order_id},
+            {"$set": {
+                "payment_id": input.razorpay_payment_id,
+                "signature": input.razorpay_signature,
+                "status": "paid",
+                "paid_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        
+        # Activate the proposal
+        await db.proposals.update_one(
+            {"id": input.proposal_id},
+            {"$set": {
+                "paid": True,
+                "payment_status": "completed",
+                "payment_id": input.razorpay_payment_id
+            }}
+        )
+        
+        # Get the proposal
+        proposal = await db.proposals.find_one({"id": input.proposal_id}, {"_id": 0})
+        
+        return {
+            "success": True,
+            "message": "Payment verified successfully",
+            "proposal_id": input.proposal_id,
+            "proposal": proposal
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error verifying payment: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to verify payment: {str(e)}")
+
 # Proposal endpoints
 @api_router.post("/proposals", response_model=ProposalResponse)
 async def create_proposal(input: ProposalCreate):
+    """Create a free proposal (for testing/backwards compatibility)"""
     proposal_id = str(uuid.uuid4())
     created_at = datetime.now(timezone.utc).isoformat()
     
@@ -67,7 +210,8 @@ async def create_proposal(input: ProposalCreate):
         "character_choice": input.character_choice,
         "created_at": created_at,
         "accepted": None,
-        "accepted_at": None
+        "accepted_at": None,
+        "paid": True  # Mark as paid for backwards compatibility
     }
     
     await db.proposals.insert_one(doc)
@@ -79,7 +223,8 @@ async def create_proposal(input: ProposalCreate):
         character_choice=doc["character_choice"],
         created_at=created_at,
         accepted=None,
-        accepted_at=None
+        accepted_at=None,
+        paid=True
     )
 
 @api_router.get("/proposals/{proposal_id}", response_model=ProposalResponse)
