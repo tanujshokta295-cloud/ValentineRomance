@@ -17,7 +17,7 @@ const noButtonTexts = [
   'Missed!',
 ];
 
-const ProposalCard = ({ valentineName, customMessage, characterChoice, onAccept }) => {
+const ProposalCard = ({ valentineName, customMessage, characterChoice, onAccept, isPreview = false }) => {
   const [noAttempts, setNoAttempts] = useState(0);
   const [noButtonText, setNoButtonText] = useState('No');
   const [noButtonPosition, setNoButtonPosition] = useState({ x: 0, y: 0 });
@@ -81,7 +81,7 @@ const ProposalCard = ({ valentineName, customMessage, characterChoice, onAccept 
       // Change the text to something funny
       setNoButtonText(getRandomText());
 
-      // Grow the Yes button by 20%
+      // Grow the Yes button by 25%
       setYesScale(1 + newAttempts * 0.25);
 
       // Hide after 3 attempts
@@ -174,9 +174,16 @@ const ProposalCard = ({ valentineName, customMessage, characterChoice, onAccept 
       initial={{ scale: 0.8, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
-      className="valentine-card p-6 md:p-12 max-w-md w-full mx-auto text-center relative overflow-visible"
+      className={`valentine-card p-6 md:p-12 max-w-md w-full mx-auto text-center relative overflow-visible ${isPreview ? 'shadow-[0_20px_50px_rgba(255,77,109,0.25)]' : ''}`}
       style={{ minHeight: isMobile ? '480px' : '550px' }}
     >
+      {/* Preview Badge */}
+      {isPreview && (
+        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-[#FF4D6D] text-white text-xs font-bold px-4 py-1 rounded-full shadow-md">
+          PREVIEW
+        </div>
+      )}
+
       <AnimatePresence mode="wait">
         {!accepted ? (
           <motion.div
