@@ -10,9 +10,11 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import FloatingHearts from '../components/FloatingHearts';
 import ProposalCard from '../components/ProposalCard';
+import useRazorpay from 'react-razorpay';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+const RAZORPAY_KEY_ID = process.env.REACT_APP_RAZORPAY_KEY_ID;
 
 const characterOptions = [
   {
@@ -29,16 +31,19 @@ const characterOptions = [
   },
 ];
 
-const PRICE = 2.99;
+const PRICE_INR = 249;
+const PRICE_DISPLAY = "₹249";
 
 const HomePage = () => {
+  const [Razorpay] = useRazorpay();
+  
   // Form state
   const [valentineName, setValentineName] = useState('');
   const [customMessage, setCustomMessage] = useState('');
   const [selectedCharacter, setSelectedCharacter] = useState('bear');
   
   // Flow state
-  const [step, setStep] = useState('form'); // 'form' | 'preview' | 'payment' | 'success'
+  const [step, setStep] = useState('form'); // 'form' | 'preview' | 'success'
   const [isLoading, setIsLoading] = useState(false);
   const [generatedLink, setGeneratedLink] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -57,25 +62,73 @@ const HomePage = () => {
   const handlePayment = async () => {
     setIsProcessingPayment(true);
     
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
     try {
-      const response = await axios.post(`${API}/proposals`, {
+      // Step 1: Create order on backend
+      const orderResponse = await axios.post(`${API}/payments/create-order`, {
         valentine_name: valentineName.trim(),
         custom_message: customMessage.trim() || 'Will you be my Valentine?',
         character_choice: selectedCharacter,
       });
 
-      const proposalId = response.data.id;
-      const link = `${window.location.origin}/proposal/${proposalId}`;
-      setGeneratedLink(link);
-      setStep('success');
-      toast.success('Payment successful! Your link is ready! 🎉');
+      const { order_id, amount, currency, key_id, proposal_id } = orderResponse.data;
+
+      // Step 2: Open Razorpay checkout
+      const options = {
+        key: key_id || RAZORPAY_KEY_ID,
+        amount: amount,
+        currency: currency,
+        name: "Valentine Proposal",
+        description: `Proposal for ${valentineName}`,
+        order_id: order_id,
+        handler: async (response) => {
+          // Step 3: Verify payment on backend
+          try {
+            const verifyResponse = await axios.post(`${API}/payments/verify`, {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              proposal_id: proposal_id,
+            });
+
+            if (verifyResponse.data.success) {
+              const link = `${window.location.origin}/proposal/${proposal_id}`;
+              setGeneratedLink(link);
+              setStep('success');
+              toast.success('Payment successful! Your link is ready! 🎉');
+            }
+          } catch (verifyError) {
+            console.error('Payment verification failed:', verifyError);
+            toast.error('Payment verification failed. Please contact support.');
+          }
+        },
+        prefill: {
+          name: "",
+          email: "",
+          contact: ""
+        },
+        theme: {
+          color: "#FF4D6D"
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessingPayment(false);
+            toast.error('Payment cancelled');
+          }
+        }
+      };
+
+      const razorpayInstance = new Razorpay(options);
+      razorpayInstance.on('payment.failed', (response) => {
+        console.error('Payment failed:', response.error);
+        toast.error(`Payment failed: ${response.error.description}`);
+        setIsProcessingPayment(false);
+      });
+      
+      razorpayInstance.open();
+
     } catch (error) {
-      console.error('Error creating proposal:', error);
-      toast.error('Failed to create proposal. Please try again.');
-    } finally {
+      console.error('Error creating payment order:', error);
+      toast.error('Failed to initiate payment. Please try again.');
       setIsProcessingPayment(false);
     }
   };
@@ -95,6 +148,7 @@ const HomePage = () => {
     setValentineName('');
     setCustomMessage('');
     setSelectedCharacter('bear');
+    setIsProcessingPayment(false);
   };
 
   return (
@@ -275,7 +329,7 @@ const HomePage = () => {
                     {/* Price */}
                     <div className="bg-pink-50 rounded-2xl p-4 inline-block">
                       <span className="font-heading text-3xl font-extrabold text-[#FF4D6D]">
-                        ${PRICE}
+                        {PRICE_DISPLAY}
                       </span>
                       <span className="font-body text-gray-500 text-sm ml-2">
                         one-time
@@ -318,15 +372,18 @@ const HomePage = () => {
                       ) : (
                         <span className="flex items-center gap-2">
                           <CreditCard size={18} />
-                          Pay ${PRICE} & Get Link
+                          Pay {PRICE_DISPLAY} & Get Link
                         </span>
                       )}
                     </Button>
 
-                    {/* Security note */}
-                    <p className="flex items-center justify-center gap-1 text-xs text-gray-400">
+                    {/* Payment methods info */}
+                    <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
                       <Lock size={12} />
-                      Secure payment
+                      <span>Secure payment via Razorpay</span>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      UPI • Cards • Net Banking • Wallets
                     </p>
                   </div>
                 </CardContent>
