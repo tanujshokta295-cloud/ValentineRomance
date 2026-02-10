@@ -127,6 +127,9 @@ async def get_current_price():
 async def create_payment_order(input: PaymentOrderCreate):
     """Create a Razorpay order and a pending proposal"""
     try:
+        # Get current price from settings
+        current_price = await get_current_price()
+        
         # Create proposal first (unpaid)
         proposal_id = str(uuid.uuid4())
         created_at = datetime.now(timezone.utc).isoformat()
