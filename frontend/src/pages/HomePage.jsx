@@ -366,7 +366,7 @@ const HomePage = () => {
                     {/* Price */}
                     <div className="bg-pink-50 rounded-2xl p-4 inline-block">
                       <span className="font-heading text-3xl font-extrabold text-[#FF4D6D]">
-                        {PRICE_DISPLAY}
+                        {pricing.display_price}
                       </span>
                       <span className="font-body text-gray-500 text-sm ml-2">
                         one-time
