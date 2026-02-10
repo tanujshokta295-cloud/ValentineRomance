@@ -409,7 +409,7 @@ const HomePage = () => {
                       ) : (
                         <span className="flex items-center gap-2">
                           <CreditCard size={18} />
-                          Pay {PRICE_DISPLAY} & Get Link
+                          Pay {pricing.display_price} & Get Link
                         </span>
                       )}
                     </Button>
