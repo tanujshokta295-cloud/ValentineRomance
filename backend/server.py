@@ -82,7 +82,45 @@ class StatusCheckCreate(BaseModel):
     client_name: str
 
 # Payment amount in paise (₹249 = 24900 paise, approximately $2.99)
-PAYMENT_AMOUNT = 24900  # ₹249
+# This will be fetched from database settings
+DEFAULT_PAYMENT_AMOUNT = 24900  # ₹249
+
+# Settings endpoints
+@api_router.get("/settings/pricing")
+async def get_pricing():
+    """Get current pricing settings"""
+    settings = await db.settings.find_one({"key": "pricing"}, {"_id": 0})
+    if not settings:
+        # Create default settings
+        settings = {
+            "key": "pricing",
+            "amount": DEFAULT_PAYMENT_AMOUNT,
+            "currency": "INR",
+            "display_price": "₹249"
+        }
+        await db.settings.insert_one(settings)
+    return settings
+
+@api_router.post("/settings/pricing")
+async def update_pricing(amount: int, display_price: str):
+    """Update pricing - amount in paise (e.g., 24900 for ₹249)"""
+    await db.settings.update_one(
+        {"key": "pricing"},
+        {"$set": {
+            "amount": amount,
+            "display_price": display_price,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }},
+        upsert=True
+    )
+    return {"success": True, "amount": amount, "display_price": display_price}
+
+async def get_current_price():
+    """Helper to get current price from settings"""
+    settings = await db.settings.find_one({"key": "pricing"}, {"_id": 0})
+    if settings:
+        return settings.get("amount", DEFAULT_PAYMENT_AMOUNT)
+    return DEFAULT_PAYMENT_AMOUNT
 
 # Payment endpoints
 @api_router.post("/payments/create-order", response_model=PaymentOrderResponse)
