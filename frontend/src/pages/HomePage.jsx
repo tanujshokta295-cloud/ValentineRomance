@@ -24,15 +24,15 @@ const characterOptions = [
   },
   {
     id: 'bear',
-    name: 'Teddy Bear',
+    name: 'Couple Teddy',
     emoji: '🧸',
-    image: 'https://images.unsplash.com/photo-1747847386084-2b299514f40c?w=150&h=150&fit=crop',
+    image: 'https://customer-assets.emergentagent.com/job_cutematch-1/artifacts/ur3y0r94_couple-teddy-4096926_1280.jpg',
   },
   {
-    id: 'bunny',
-    name: 'Love Bunny',
-    emoji: '🐰',
-    image: 'https://images.unsplash.com/photo-1718459782489-5aeeb65522be?w=150&h=150&fit=crop',
+    id: 'seal',
+    name: 'Sappy Seals',
+    emoji: '🦭',
+    image: 'https://media.tenor.com/ROmTAoP9n8oAAAAi/sappy-seals-sappy.gif',
   },
 ];
 
